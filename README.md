@@ -28,3 +28,5 @@ the last spoken line and the end of the video is not exported.
 * I commented out the scaling part of my favorite twitter-mp4 flavor: it may need to be re-added for big videos, so that 
 should be an option.
 * Add an option to convert directly to GIFs instead of movies, maybe by calling mov2gif? 
+* Add an option to auto-concatenate all the output files
+* Add an option to enable hardware acceleration (see https://twitter.com/hennichodernich/status/1043233666523164672)
