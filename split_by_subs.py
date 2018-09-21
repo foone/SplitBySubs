@@ -25,7 +25,7 @@ parser.add_argument('--min-length', dest="minlength", action='store', nargs='?',
 parser.add_argument('-m', '--match', metavar='PATTERN', action='store', type=str,
                     help='Only output clips matching a given pattern')
 parser.add_argument('-r', '--replace', metavar='NEWSUBS', action='store', type=str,
-                    help='Change the subtitles to this string. Use $NL for a newline. Implies -s')
+                    help='Change the subtitles to this string. Use {NL} for a newline. Implies -s')
 parser.add_argument('-v', '--verbose', action='store_true',
                     help='Print output from ffmpeg, and command being run')
 
@@ -91,7 +91,7 @@ if args.subs:
 		# and generate a new SRT file for ffmpeg!
 		subtitles = list(subtitles)
 		modified_subs = []
-		new_subtitle = args.replace.replace('$NL','\n')
+		new_subtitle = args.replace.replace('{NL}','\n')
 		for e in subtitles:
 			modified_subs.append(srt.Subtitle(e.index,e.start,e.end,new_subtitle,e.proprietary))
 		with open(TMPFILE,'wb') as f:
