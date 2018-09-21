@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import sys,srt,re,os,shutil, json
 import subprocess
-import argparse
+import argparse, fnmatch
 
 TMPFILE='tmp.srt'
 
@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser(description='Split a movie into sub-movies base
 parser.add_argument('movie', metavar='MOVIE', type=str,
                     help='The movie to extract from')
 parser.add_argument('srt', metavar='SRTFILE', type=str, nargs='?',
-                    help='The accompanying subtitles file in srt format')
+                    help='The accompanying subtitles file in srt format (optional: will be guessed if not given)')
 parser.add_argument('-s', '--subs',dest='subs', action='store_true',
                     help='embed hard-subs into the video')
 parser.add_argument('-o', '--out',dest='outdir', action='store', type=str, nargs='?',
@@ -22,6 +22,10 @@ parser.add_argument('--end-early', dest="endearly", action='store', nargs='?', t
                     help='When extracting between-segments, end them early by this many seconds')
 parser.add_argument('--min-length', dest="minlength", action='store', nargs='?', type=float, default=1.0,
                     help="When extracting between-segments, don't write any files that'd be shorter than this many seconds")
+parser.add_argument('-m', '--match', metavar='PATTERN', action='store', type=str,
+                    help='Only output clips matching a given pattern')
+parser.add_argument('-r', '--replace', metavar='NEWSUBS', action='store', type=str,
+                    help='Change the subtitles to this string. Use $NL for a newline. Implies -s')
 parser.add_argument('-v', '--verbose', action='store_true',
                     help='Print output from ffmpeg, and command being run')
 
@@ -35,7 +39,8 @@ if args.srt is None:
 		print >>sys.stderr,"Couldn't find SRT file! (guessed {})".format(args.srt)
 		print >>sys.stderr,"Please specify SRT path explicitly!"
 		sys.exit(1)
-
+if args.replace:
+	args.subs=True
 
 def clean(msg):
 	msg=re.sub("[^a-zA-Z0-9,.']",' ',msg)
@@ -73,14 +78,30 @@ if args.twitter:
 
 quiet_mkdir(args.outdir)
 
+match_pattern='*'
+if args.match:
+	match_pattern = '*{}*'.format(args.match)
+
 if args.subs:
 	# We need the subs in a filename with no spaces, because ffmpeg filter parsing is terrible
 	# so we save it locally and then delete at the end.
 	quiet_erase(TMPFILE)
-	shutil.copy(args.srt, TMPFILE)
+	if args.replace:
+		# We need to both cache the list of subtitles (so we can iterate it twice)
+		# and generate a new SRT file for ffmpeg!
+		subtitles = list(subtitles)
+		modified_subs = []
+		for e in subtitles:
+			modified_subs.append(srt.Subtitle(e.index,e.start,e.end,args.replace,e.proprietary))
+		with open(TMPFILE,'wb') as f:
+			f.write(srt.compose(modified_subs))
+	else:
+		shutil.copy(args.srt, TMPFILE)
 try:
 	last_end = 0.0
 	for entry in subtitles:
+		if not fnmatch.fnmatchcase(entry.content, match_pattern):
+			continue
 		if args.between:
 			name = 'between'
 		else:
