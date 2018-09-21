@@ -26,6 +26,8 @@ parser.add_argument('-m', '--match', metavar='PATTERN', action='store', type=str
                     help='Only output clips matching a given pattern')
 parser.add_argument('-r', '--replace', metavar='NEWSUBS', action='store', type=str,
                     help='Change the subtitles to this string. Use {NL} for a newline. Implies -s')
+parser.add_argument('-e', '--encoding', metavar='CHARSET', action='store', type=str, default='utf-8',
+                    help='Encoding to use for SRT files')
 parser.add_argument('-v', '--verbose', action='store_true',
                     help='Print output from ffmpeg, and command being run')
 
@@ -63,7 +65,7 @@ def quiet_mkdir(path):
 		pass
 
 with open(args.srt,'rb') as f:
-	subtitles=srt.parse(f.read())
+	subtitles=srt.parse(f.read().decode(args.encoding))
 
 # Extract some basic info from the movie
 info = json.loads(subprocess.check_output(['ffprobe','-v','quiet','-print_format','json','-show_format','-show_streams', args.movie]))
@@ -95,7 +97,7 @@ if args.subs:
 		for e in subtitles:
 			modified_subs.append(srt.Subtitle(e.index,e.start,e.end,new_subtitle,e.proprietary))
 		with open(TMPFILE,'wb') as f:
-			f.write(srt.compose(modified_subs))
+			f.write(srt.compose(modified_subs).encode(args.encoding))
 	else:
 		shutil.copy(args.srt, TMPFILE)
 try:
