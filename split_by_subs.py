@@ -91,8 +91,9 @@ if args.subs:
 		# and generate a new SRT file for ffmpeg!
 		subtitles = list(subtitles)
 		modified_subs = []
+		new_subtitle = args.replace.replace('$NL','\n')
 		for e in subtitles:
-			modified_subs.append(srt.Subtitle(e.index,e.start,e.end,args.replace,e.proprietary))
+			modified_subs.append(srt.Subtitle(e.index,e.start,e.end,new_subtitle,e.proprietary))
 		with open(TMPFILE,'wb') as f:
 			f.write(srt.compose(modified_subs))
 	else:
