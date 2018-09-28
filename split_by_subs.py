@@ -12,6 +12,8 @@ parser.add_argument('srt', metavar='SRTFILE', type=str, nargs='?',
                     help='The accompanying subtitles file in srt format (optional: will be guessed if not given)')
 parser.add_argument('-s', '--subs',dest='subs', action='store_true',
                     help='embed hard-subs into the video')
+parser.add_argument('-f', '--fontsize', action='store',type=float,
+                    help='set point size of hard-subs')
 parser.add_argument('-o', '--out',dest='outdir', action='store', type=str, nargs='?',
                     help='destination directory for clips. Defaults to the movie name + " clips" (or " betweens" for the -b mode)')
 parser.add_argument('-t', '--twitter', action='store_true',
@@ -156,7 +158,12 @@ try:
 			cmd.extend(['-hide_banner','-loglevel','panic','-v','quiet'])
 		cmd.extend(['-i', args.movie])
 		if args.subs:
-			cmd.extend(['-vf','subtitles='+TMPFILE])
+			subsfilter = 'subtitles='+TMPFILE
+			if args.fontsize:
+				subsfilter = "{}:force_style='Fontsize={}'".format(subsfilter, args.fontsize)
+			cmd.extend(['-vf',subsfilter])
+			
+
 		cmd.extend(['-ss',str(start_secs),'-to',str(end_secs)])
 		if args.twitter:
 			cmd.extend([
