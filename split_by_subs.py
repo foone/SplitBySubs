@@ -30,6 +30,8 @@ parser.add_argument('--rr', '--regex-replace', metavar='s/FOO/BAR/', action='sto
                     help='Change the subtitles using a simple regex')
 parser.add_argument('-e', '--encoding', metavar='CHARSET', action='store', type=str, default='utf-8',
                     help='Encoding to use for SRT files')
+parser.add_argument('-a', '--after', metavar='N', action='store', type=int, default=0,
+                    help='Encode the next N clips into this clip. Not really useful without -m')
 parser.add_argument('-v', '--verbose', action='store_true',
                     help='Print output from ffmpeg, and command being run')
 
@@ -125,7 +127,7 @@ if args.subs:
 		f.write(srt.compose(modified_subs).encode(args.encoding))
 try:
 	last_end = 0.0
-	for entry in subtitles:
+	for entryi,entry in enumerate(subtitles):
 		if not fnmatch.fnmatchcase(entry.content.lower(), match_pattern):
 			continue
 		if args.between:
@@ -144,9 +146,9 @@ try:
 				continue
 
 		else:
-
 			start_secs = offset + ftime(entry.start)
-			end_secs = ftime(entry.end)
+			end_entry = subtitles[ min(len(subtitles)-1,entryi+args.after) ] 
+			end_secs = ftime(end_entry.end)
 		print filename
 
 		cmd = ['ffmpeg', '-y']
