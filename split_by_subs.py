@@ -26,6 +26,8 @@ parser.add_argument('-m', '--match', metavar='PATTERN', action='store', type=str
                     help='Only output clips matching a given pattern')
 parser.add_argument('-r', '--replace', metavar='NEWSUBS', action='store', type=str,
                     help='Change the subtitles to this string. Use {NL} for a newline. Implies -s')
+parser.add_argument('--rr', '--regex-replace', metavar='s/FOO/BAR/', action='store', type=str, dest='regexreplace',
+                    help='Change the subtitles using a simple regex')
 parser.add_argument('-e', '--encoding', metavar='CHARSET', action='store', type=str, default='utf-8',
                     help='Encoding to use for SRT files')
 parser.add_argument('-v', '--verbose', action='store_true',
@@ -35,13 +37,7 @@ args = parser.parse_args()
 
 if args.outdir is None:
 	args.outdir = os.path.splitext(args.movie)[0]+(' betweens' if args.between else ' clips')
-if args.srt is None:
-	args.srt = os.path.splitext(args.movie)[0] + '.srt'
-	if not os.path.exists(args.srt):
-		print >>sys.stderr,"Couldn't find SRT file! (guessed {})".format(args.srt)
-		print >>sys.stderr,"Please specify SRT path explicitly!"
-		sys.exit(1)
-if args.replace:
+if args.replace or args.regexreplace:
 	args.subs=True
 
 def clean(msg):
@@ -64,15 +60,39 @@ def quiet_mkdir(path):
 	except OSError:
 		pass
 
-with open(args.srt,'rb') as f:
-	subtitles=srt.parse(f.read().decode(args.encoding))
-
 # Extract some basic info from the movie
 info = json.loads(subprocess.check_output(['ffprobe','-v','quiet','-print_format','json','-show_format','-show_streams', args.movie]))
 # time_base looks like "30/100" so it's safe to eval it.
 offset = eval(info['streams'][0]['time_base']+'.0')
 # offset is basically "one frame" in terms of time, and we use it to delay starting the crop, so we don't miss
 # the first frame of subtitles. It's a hack, yes, but it seems to work.
+
+# check the file for an embedded subtitle stream
+subtitles = None
+embedded_subtitles = None
+srt_data = None
+for stream in info['streams']:
+	if stream.get('codec_name') == 'subrip':
+		embedded_subtitles = stream
+
+
+if args.srt is None:
+	if embedded_subtitles:
+		srt_data = subprocess.check_output(
+			['ffmpeg','-v','quiet','-i',args.movie,'-vn','-an', '-codec:s','srt','-f','srt','-']
+		)
+		subtitles=list(srt.parse(srt_data))
+	else:
+		args.srt = os.path.splitext(args.movie)[0] + '.srt'
+		if not os.path.exists(args.srt):
+			print >>sys.stderr,"Couldn't find SRT file! (guessed {})".format(args.srt)
+			print >>sys.stderr,"Please specify SRT path explicitly!"
+			sys.exit(1)
+
+if not subtitles:
+	with open(args.srt,'rb') as f:
+		subtitles=list(srt.parse(f.read().decode(args.encoding)))
+
 
 EXTENSION = os.path.splitext(args.movie)[1]
 if args.twitter:
@@ -88,18 +108,21 @@ if args.subs:
 	# We need the subs in a filename with no spaces, because ffmpeg filter parsing is terrible
 	# so we save it locally and then delete at the end.
 	quiet_erase(TMPFILE)
-	if args.replace:
-		# We need to both cache the list of subtitles (so we can iterate it twice)
-		# and generate a new SRT file for ffmpeg!
-		subtitles = list(subtitles)
+	if args.replace or args.regexreplace:
 		modified_subs = []
-		new_subtitle = args.replace.replace('{NL}','\n')
-		for e in subtitles:
-			modified_subs.append(srt.Subtitle(e.index,e.start,e.end,new_subtitle,e.proprietary))
-		with open(TMPFILE,'wb') as f:
-			f.write(srt.compose(modified_subs).encode(args.encoding))
+		if args.replace:
+			new_subtitle = args.replace.replace('{NL}','\n')
+			for e in subtitles:
+				modified_subs.append(srt.Subtitle(e.index,e.start,e.end,new_subtitle,e.proprietary))
+		elif args.regexreplace:
+			m = re.match(r's\/(.+)\/(.+)\/', args.regexreplace)
+			for e in subtitles:
+				new_subtitle = re.sub(m.group(1), m.group(2), e.content)
+				modified_subs.append(srt.Subtitle(e.index,e.start,e.end,new_subtitle,e.proprietary))
 	else:
-		shutil.copy(args.srt, TMPFILE)
+		modified_subs = subtitles
+	with open(TMPFILE,'wb') as f:
+		f.write(srt.compose(modified_subs).encode(args.encoding))
 try:
 	last_end = 0.0
 	for entry in subtitles:
