@@ -28,8 +28,8 @@ parser.add_argument('-m', '--match', metavar='PATTERN', action='store', type=str
                     help='Only output clips matching a given pattern')
 parser.add_argument('-r', '--replace', metavar='NEWSUBS', action='store', type=str,
                     help='Change the subtitles to this string. Use {NL} for a newline. Implies -s')
-parser.add_argument('--rr', '--regex-replace', metavar='s/FOO/BAR/', action='store', type=str, dest='regexreplace',
-                    help='Change the subtitles using a simple regex')
+parser.add_argument('--rr', '--regex-replace', metavar='s/FOO/BAR/', action='store', nargs='+', 
+					type=str, dest='regexreplace', help='Change the subtitles using a simple regex')
 parser.add_argument('-e', '--encoding', metavar='CHARSET', action='store', type=str, default='utf-8',
                     help='Encoding to use for SRT files')
 parser.add_argument('-a', '--after', metavar='N', action='store', type=int, default=0,
@@ -119,9 +119,15 @@ if args.subs:
 			for e in subtitles:
 				modified_subs.append(srt.Subtitle(e.index,e.start,e.end,new_subtitle,e.proprietary))
 		elif args.regexreplace:
-			m = re.match(r's\/(.+)\/(.+)\/', args.regexreplace)
+			replacements = [
+				re.match(r's\/(.+)\/(.+)\/', replace)
+				for replace in 
+				args.regexreplace
+			]
 			for e in subtitles:
-				new_subtitle = re.sub(m.group(1), m.group(2), e.content)
+				new_subtitle = e.content
+				for m in replacements:
+					new_subtitle = re.sub(m.group(1), m.group(2), new_subtitle)
 				modified_subs.append(srt.Subtitle(e.index,e.start,e.end,new_subtitle,e.proprietary))
 	else:
 		modified_subs = subtitles
