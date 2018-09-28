@@ -82,7 +82,7 @@ quiet_mkdir(args.outdir)
 
 match_pattern='*'
 if args.match:
-	match_pattern = '*{}*'.format(args.match)
+	match_pattern = '*{}*'.format(args.match.lower())
 
 if args.subs:
 	# We need the subs in a filename with no spaces, because ffmpeg filter parsing is terrible
@@ -103,7 +103,7 @@ if args.subs:
 try:
 	last_end = 0.0
 	for entry in subtitles:
-		if not fnmatch.fnmatchcase(entry.content, match_pattern):
+		if not fnmatch.fnmatchcase(entry.content.lower(), match_pattern):
 			continue
 		if args.between:
 			name = 'between'
