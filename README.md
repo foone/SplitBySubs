@@ -23,7 +23,6 @@ If you don't get give the SRT filename, it guesses it by trying the same filenam
 * The between-dialogue mode has an off-by-one error: the final bit of silence between 
 the last spoken line and the end of the video is not exported.
 * There should be an option to manually resynchronize the subtitles by some arbitrary amount of time
-* Often subtitles are included into video files, like inside MKV containers. That's not at all supported yet.
 * Subtitle formats other than SRT should be supported
 * I commented out the scaling part of my favorite twitter-mp4 flavor: it may need to be re-added for big videos, so that 
 should be an option.
