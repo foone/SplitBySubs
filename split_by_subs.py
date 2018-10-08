@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import sys,srt,re,os,shutil, json
+import sys,srt,re,os,shutil, json, datetime
 import subprocess
 import argparse, fnmatch
 
@@ -34,6 +34,8 @@ parser.add_argument('-e', '--encoding', metavar='CHARSET', action='store', type=
                     help='Encoding to use for SRT files')
 parser.add_argument('-a', '--after', metavar='N', action='store', type=int, default=0,
                     help='Encode the next N clips into this clip. Not really useful without -m')
+parser.add_argument('--shift', metavar='SECONDS',action='store', type=float, default=None,
+                    help='Shift subtitles forward/back by SECONDS')
 parser.add_argument('-v', '--verbose', action='store_true',
                     help='Print output from ffmpeg, and command being run')
 
@@ -78,6 +80,7 @@ srt_data = None
 for stream in info['streams']:
 	if stream.get('codec_name') == 'subrip':
 		embedded_subtitles = stream
+		break
 
 
 if args.srt is None:
@@ -91,12 +94,19 @@ if args.srt is None:
 		if not os.path.exists(args.srt):
 			print >>sys.stderr,"Couldn't find SRT file! (guessed {})".format(args.srt)
 			print >>sys.stderr,"Please specify SRT path explicitly!"
+
 			sys.exit(1)
 
 if not subtitles:
 	with open(args.srt,'rb') as f:
 		subtitles=list(srt.parse(f.read().decode(args.encoding)))
 
+if args.shift is not None:
+	shifted_subs = []
+	shift_amount = datetime.timedelta(seconds=-args.shift)
+	for e in subtitles:
+		shifted_subs.append(srt.Subtitle(e.index,e.start+shift_amount,e.end+shift_amount,e.content,e.proprietary))
+	subtitles = shifted_subs
 
 EXTENSION = os.path.splitext(args.movie)[1]
 if args.twitter:
